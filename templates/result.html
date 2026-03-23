@@ -103,6 +103,39 @@
     </div>
   </div>
 
+  <!-- ✅ CUSTOM COLUMN SELECTION (ADDED ONLY THIS BLOCK) -->
+  <div class="card dl-card p-4 mb-4">
+    <h4 class="dl-section-title">⚙️ Custom Plot</h4>
+
+    <form method="POST" action="/custom">
+      <div class="row g-3">
+        <div class="col-md-5">
+          <label>X Column</label>
+          <select name="col_x" class="form-control">
+            {% for col in summary.column_names %}
+            <option value="{{col}}">{{col}}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-5">
+          <label>Y Column</label>
+          <select name="col_y" class="form-control">
+            {% for col in summary.column_names %}
+            <option value="{{col}}">{{col}}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-2 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary w-100">
+            Generate
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
   <!-- ── 2. VISUALIZATIONS ── -->
   {% if chart_groups %}
   <div class="card dl-card p-4 mb-4">
@@ -110,36 +143,10 @@
 
     {% for group in chart_groups %}
     <div class="chart-group mb-4">
-
-      <!-- group header -->
       <div class="chart-group-label">
         {{ group.icon }} {{ group.label }}
-        <span class="scroll-hint">{% if group.scroll == 'v' %}scroll ↕{% else %}scroll ↔{% endif %}</span>
       </div>
 
-      <!-- box plot / heatmap / trend → horizontal scroll -->
-      {% if group.scroll == 'h' %}
-      <div class="chart-hscroll" data-group="{{ group.label | lower | replace(' ', '-') }}">
-        {% for c in group.charts %}
-        <div class="chart-card">
-          <img src="/{{ c.path }}" alt="{{ c.title }}"/>
-          <div class="chart-meta">
-            <div class="chart-title">{{ c.title }}</div>
-            <div class="chart-hint">{{ c.hint }}</div>
-            <div class="chart-color-row mt-2">
-              {% for col, color in c.colors.items() %}
-              <span class="chart-color-chip" style="border-color:{{ color }}">
-                <span class="chip-dot" style="background:{{ color }}"></span>{{ col }}
-              </span>
-              {% endfor %}
-            </div>
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-
-      <!-- hist / scatter / cat / pie → 2-per-row vertical scroll grid -->
-      {% else %}
       <div class="chart-vscroll">
         <div class="chart-2col-grid">
           {% for c in group.charts %}
@@ -147,48 +154,27 @@
             <img src="/{{ c.path }}" alt="{{ c.title }}"/>
             <div class="chart-meta">
               <div class="chart-title">{{ c.title }}</div>
-              <div class="chart-hint">{{ c.hint }}</div>
-              <div class="chart-color-row mt-2">
-                {% for col, color in c.colors.items() %}
-                <span class="chart-color-chip" style="border-color:{{ color }}">
-                  <span class="chip-dot" style="background:{{ color }}"></span>{{ col }}
-                </span>
-                {% endfor %}
-              </div>
             </div>
           </div>
           {% endfor %}
         </div>
       </div>
-      {% endif %}
-
     </div>
     {% endfor %}
-
   </div>
   {% endif %}
 
-  <!-- ── 3. DATA PREVIEW ── -->
+  <!-- ── DATA PREVIEW ── -->
   <div class="card dl-card p-4 mb-4">
-    <h4 class="dl-section-title">
-      &#128269; Data Preview <span class="dl-muted-sm">(first 10 rows)</span>
-    </h4>
+    <h4 class="dl-section-title">Data Preview</h4>
     <div class="table-scroll-wrap">{{ table | safe }}</div>
   </div>
 
-  <!-- ── 4. STATISTICS ── -->
+  <!-- ── STATS ── -->
   <div class="card dl-card p-4 mb-4">
-    <h4 class="dl-section-title">&#128208; Descriptive Statistics</h4>
+    <h4 class="dl-section-title">Statistics</h4>
     <div class="table-scroll-wrap">{{ stats | safe }}</div>
   </div>
-
-  <div class="text-center mt-3">
-    <a href="/" class="btn btn-back-lg">&#8592; Go Back</a>
-  </div>
-
-  <footer class="dl-footer mt-5">
-    DataLens &nbsp;&middot;&nbsp; Powered by Python, Pandas &amp; Matplotlib
-  </footer>
 
 </div>
 </body>
