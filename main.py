@@ -11,8 +11,8 @@ import os
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 
-BG_COLOR   = "#0A0A0A"
-CARD_BG    = "#141414"
+BG_COLOR = "#0A0A0A"
+CARD_BG = "#141414"
 TEXT_COLOR = "#F0F0F0"
 GRID_COLOR = "#2A2A2A"
 
@@ -54,12 +54,12 @@ def _scatter_single(ax, df, x, y, cx, cy):
     ax.set_ylabel(y, color=cy)
     ax.grid(True)
 
+# ===================== STATIC CHARTS =====================
+
 def generate_static_charts(df):
     _base_style()
 
-    numeric_cols = [c for c in df.select_dtypes(include="number").columns
-                    if "id" not in c.lower()]
-
+    numeric_cols = [c for c in df.select_dtypes(include="number").columns if "id" not in c.lower()]
     colors = _assign_colors(df.columns)
     chart_groups = []
 
@@ -69,31 +69,25 @@ def generate_static_charts(df):
     data = [df[c].dropna() for c in numeric_cols]
     ax.boxplot(data)
     ax.set_xticklabels(numeric_cols, rotation=40)
-    path = "static/boxplot.png"
-    _save(fig, path)
+    _save(fig, "static/boxplot.png")
 
     chart_groups.append({
         "label": "Box Plot",
         "icon": "📦",
-        "scroll": "h",
-        "charts": [{"title": "Box Plot", "path": path}]
+        "charts": [{"title": "Box Plot", "path": "static/boxplot.png"}]
     })
 
     # HEATMAP
     heat_cols = numeric_cols[:10]
     fig, ax = plt.subplots(figsize=(8,6), facecolor=BG_COLOR)
     ax.set_facecolor(CARD_BG)
-    sns.heatmap(df[heat_cols].corr(),
-                annot=True, fmt=".2f",
-                cmap="Oranges", ax=ax)
-    path = "static/heatmap.png"
-    _save(fig, path)
+    sns.heatmap(df[heat_cols].corr(), annot=True, fmt=".2f", cmap="Oranges", ax=ax)
+    _save(fig, "static/heatmap.png")
 
     chart_groups.append({
         "label": "Heatmap",
         "icon": "🌡️",
-        "scroll": "h",
-        "charts": [{"title": "Correlation Heatmap", "path": path}]
+        "charts": [{"title": "Correlation Heatmap", "path": "static/heatmap.png"}]
     })
 
     # TIME SERIES
@@ -108,55 +102,56 @@ def generate_static_charts(df):
         ax.set_title("Trend Over Time – price", color=TEXT_COLOR)
         ax.grid(True)
 
-        path = "static/timeseries.png"
-        _save(fig, path)
+        _save(fig, "static/timeseries.png")
 
         chart_groups.append({
             "label": "Time Series",
             "icon": "📈",
-            "scroll": "h",
-            "charts": [{"title": "Price over Time", "path": path}]
+            "charts": [{"title": "Price over Time", "path": "static/timeseries.png"}]
         })
 
-    # 🔥 PIE CHART (ONLY NEW ADDITION)
+    # PIE CHART FIXED
     cat_cols = df.select_dtypes(include=["object"]).columns
-
     pie_cards = []
+
     for col in list(cat_cols)[:3]:
-        counts = df[col].value_counts().head(6)
+        series = df[col].copy()
+
+        if "date" in col.lower():
+            series = pd.to_datetime(series, errors="coerce")
+            series = series.dt.to_period("M").astype(str)
+
+        counts = series.value_counts().head(6)
 
         fig, ax = plt.subplots(figsize=(6,6), facecolor=BG_COLOR)
         ax.set_facecolor(CARD_BG)
 
-        ax.pie(counts,
-               labels=counts.index,
-               autopct="%1.1f%%")
+        wedges, texts, autotexts = ax.pie(counts, autopct="%1.1f%%")
+
+        ax.legend(wedges, counts.index, title=col,
+                  loc="center left", bbox_to_anchor=(1,0,0.5,1), fontsize=8)
 
         ax.set_title(f"{col} distribution", color=TEXT_COLOR)
 
         path = f"static/pie_{col}.png"
         _save(fig, path)
 
-        pie_cards.append({
-            "title": col,
-            "path": path
-        })
+        pie_cards.append({"title": col, "path": path})
 
     if pie_cards:
         chart_groups.append({
             "label": "Pie Charts",
             "icon": "🥧",
-            "scroll": "h",
             "charts": pie_cards
         })
 
     return chart_groups, colors
 
+# ===================== ROUTES =====================
 
 @app.route('/')
 def home():
     return render_template('index.html')
-
 
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -175,69 +170,89 @@ def upload():
     stats = df_num.describe().round(2).to_html(classes="table table-bordered")
 
     return render_template('result.html',
-                           table=table,
-                           stats=stats,
-                           chart_groups=charts,
-                           summary={
-                               "rows": df.shape[0],
-                               "columns": df.shape[1],
-                               "column_names": list(df.columns),
-                               "numeric_columns": df_num.select_dtypes(include="number").columns.tolist(),
-                               "missing_values": df.isnull().sum().to_dict()
-                           },
-                           col_colors=colors)
+        table=table,
+        stats=stats,
+        chart_groups=charts,
+        summary={
+            "rows": df.shape[0],
+            "columns": df.shape[1],
+            "column_names": list(df.columns),
+            "numeric_columns": df_num.select_dtypes(include="number").columns.tolist(),
+            "missing_values": df.isnull().sum().to_dict()
+        },
+        col_colors=colors)
 
+# ===================== CUSTOM =====================
 
 @app.route('/custom_scatter', methods=['POST'])
 def custom_scatter():
-    x = request.form.get("col_x")
-    y = request.form.get("col_y")
+    try:
+        x = request.form.get("col_x")
+        y = request.form.get("col_y")
 
-    df = pd.read_csv("temp.csv").replace("N/A", np.nan)
-    colors = _assign_colors(df.columns)
+        if not os.path.exists("temp.csv"):
+            return "Upload dataset first"
 
-    fig, ax = plt.subplots(figsize=(10,5), facecolor=BG_COLOR)
-    ax.set_facecolor(CARD_BG)
+        df = pd.read_csv("temp.csv").replace("N/A", np.nan)
 
-    _scatter_single(ax, df, x, y, colors[x], colors[y])
+        if x not in df.columns or y not in df.columns:
+            return "Invalid columns"
 
-    path = "static/custom_scatter.png"
-    _save(fig, path)
+        colors = _assign_colors(df.columns)
 
-    return render_template('result.html',
-                           chart_groups=[{
-                               "label": "Custom Scatter",
-                               "icon": "⚙️",
-                               "scroll": "h",
-                               "charts":[{"title": f"{x} × {y}", "path": path}]
-                           }])
+        fig, ax = plt.subplots(figsize=(10,5), facecolor=BG_COLOR)
+        ax.set_facecolor(CARD_BG)
 
+        _scatter_single(ax, df, x, y, colors[x], colors[y])
+
+        _save(fig, "static/custom_scatter.png")
+
+        return render_template('result.html',
+            chart_groups=[{
+                "label": "Custom Scatter",
+                "icon": "⚙️",
+                "charts":[{"title": f"{x} × {y}", "path": "static/custom_scatter.png"}]
+            }])
+
+    except Exception as e:
+        return str(e)
 
 @app.route('/custom_hist', methods=['POST'])
 def custom_hist():
-    col = request.form.get("col")
+    try:
+        col = request.form.get("col")
 
-    df = pd.read_csv("temp.csv").replace("N/A", np.nan)
-    colors = _assign_colors(df.columns)
+        if not os.path.exists("temp.csv"):
+            return "Upload dataset first"
 
-    fig, ax = plt.subplots(figsize=(10,5), facecolor=BG_COLOR)
-    ax.set_facecolor(CARD_BG)
+        df = pd.read_csv("temp.csv").replace("N/A", np.nan)
 
-    ax.hist(df[col].dropna(), color=colors[col], bins=25)
-    ax.set_title(f"Distribution – {col}", color=TEXT_COLOR)
-    ax.grid(True)
+        if col not in df.columns:
+            return "Invalid column"
 
-    path = "static/custom_hist.png"
-    _save(fig, path)
+        if not pd.api.types.is_numeric_dtype(df[col]):
+            return "Select numeric column"
 
-    return render_template('result.html',
-                           chart_groups=[{
-                               "label": "Custom Histogram",
-                               "icon": "⚙️",
-                               "scroll": "h",
-                               "charts":[{"title": col, "path": path}]
-                           }])
+        colors = _assign_colors(df.columns)
 
+        fig, ax = plt.subplots(figsize=(10,5), facecolor=BG_COLOR)
+        ax.set_facecolor(CARD_BG)
+
+        ax.hist(df[col].dropna(), bins=25, color=colors[col])
+        ax.set_title(f"Distribution – {col}", color=TEXT_COLOR)
+        ax.grid(True)
+
+        _save(fig, "static/custom_hist.png")
+
+        return render_template('result.html',
+            chart_groups=[{
+                "label": "Custom Histogram",
+                "icon": "⚙️",
+                "charts":[{"title": col, "path": "static/custom_hist.png"}]
+            }])
+
+    except Exception as e:
+        return str(e)
 
 if __name__ == '__main__':
     app.run(debug=True)
