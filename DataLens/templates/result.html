@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Analysis Results</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"/>
+</head>
+<body class="page-result">
+<div class="container-fluid px-4 mt-4 pb-5">
+
+  <!-- ── PAGE HEADER ── -->
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
+    <div class="logo">Data<span>Lens</span> <span class="result-badge">Results</span></div>
+    <a href="/" class="btn btn-back">&#8592; Upload Another File</a>
+  </div>
+
+  <!-- ── 1. DATASET SUMMARY ── -->
+  <div class="card dl-card p-4 mb-4">
+    <h3 class="dl-section-title">&#128204; Dataset Summary</h3>
+
+    <div class="summary-pills mb-3">
+      <div class="summary-pill">
+        <span class="pill-label">Total Rows</span>
+        <span class="pill-value">{{ summary.rows }}</span>
+      </div>
+      <div class="summary-pill">
+        <span class="pill-label">Total Columns</span>
+        <span class="pill-value">{{ summary.columns }}</span>
+      </div>
+      <div class="summary-pill">
+        <span class="pill-label">Numeric Cols</span>
+        <span class="pill-value">{{ summary.numeric_columns | length }}</span>
+      </div>
+      <div class="summary-pill">
+        <span class="pill-label">Cols w/ Missing</span>
+        <span class="pill-value">{{ summary.missing_values.values() | select('gt', 0) | list | length }}</span>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="dl-sub-card">
+          <div class="dl-sub-title">Column Names &amp; Colors</div>
+          <ul class="dl-col-list">
+            {% for col in summary.column_names %}
+            <li class="{% if col in summary.numeric_columns %}is-numeric{% endif %}">
+              <span class="col-dot" style="background:{{ col_colors.get(col,'#888') }}"></span>
+              <span class="col-name">{{ col }}</span>
+              {% if col in summary.numeric_columns %}<span class="num-tag">#</span>{% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="dl-sub-card">
+          <div class="dl-sub-title">Numeric Columns</div>
+          {% if summary.numeric_columns %}
+          <ul class="dl-col-list">
+            {% for col in summary.numeric_columns %}
+            <li class="is-numeric">
+              <span class="col-dot" style="background:{{ col_colors.get(col,'#888') }}"></span>
+              <span class="col-name">{{ col }}</span>
+              <span class="col-hex" style="color:{{ col_colors.get(col,'#888') }}">{{ col_colors.get(col,'') }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="dl-muted">No numeric columns found.</p>
+          {% endif %}
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="dl-sub-card">
+          <div class="dl-sub-title">Missing Values per Column</div>
+          <ul class="dl-col-list">
+            {% for col, val in summary.missing_values.items() %}
+            <li class="{% if val > 0 %}has-missing{% endif %}">
+              <span class="col-dot" style="background:{{ col_colors.get(col,'#888') }}"></span>
+              <span class="col-name">{{ col }}</span>
+              <strong>{{ val }}</strong>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Color Map -->
+    <div class="color-legend mt-3">
+      <div class="dl-sub-title mb-2">&#127752; Column Color Map</div>
+      <div class="color-legend-grid">
+        {% for col in summary.column_names %}
+        <div class="legend-item">
+          <span class="legend-swatch" style="background:{{ col_colors.get(col,'#888') }}"></span>
+          <span class="legend-label">{{ col }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 2. VISUALIZATIONS ── -->
+  {% if chart_groups %}
+  <div class="card dl-card p-4 mb-4">
+    <h4 class="dl-section-title">&#128202; Visualizations</h4>
+
+    {% for group in chart_groups %}
+    <div class="chart-group mb-4">
+
+      <!-- group header -->
+      <div class="chart-group-label">
+        {{ group.icon }} {{ group.label }}
+        <span class="scroll-hint">{% if group.scroll == 'v' %}scroll ↕{% else %}scroll ↔{% endif %}</span>
+      </div>
+
+      <!-- box plot / heatmap / trend → horizontal scroll -->
+      {% if group.scroll == 'h' %}
+      <div class="chart-hscroll" data-group="{{ group.label | lower | replace(' ', '-') }}">
+        {% for c in group.charts %}
+        <div class="chart-card">
+          <img src="/{{ c.path }}" alt="{{ c.title }}"/>
+          <div class="chart-meta">
+            <div class="chart-title">{{ c.title }}</div>
+            <div class="chart-hint">{{ c.hint }}</div>
+            <div class="chart-color-row mt-2">
+              {% for col, color in c.colors.items() %}
+              <span class="chart-color-chip" style="border-color:{{ color }}">
+                <span class="chip-dot" style="background:{{ color }}"></span>{{ col }}
+              </span>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- hist / scatter / cat / pie → 2-per-row vertical scroll grid -->
+      {% else %}
+      <div class="chart-vscroll">
+        <div class="chart-2col-grid">
+          {% for c in group.charts %}
+          <div class="chart-card">
+            <img src="/{{ c.path }}" alt="{{ c.title }}"/>
+            <div class="chart-meta">
+              <div class="chart-title">{{ c.title }}</div>
+              <div class="chart-hint">{{ c.hint }}</div>
+              <div class="chart-color-row mt-2">
+                {% for col, color in c.colors.items() %}
+                <span class="chart-color-chip" style="border-color:{{ color }}">
+                  <span class="chip-dot" style="background:{{ color }}"></span>{{ col }}
+                </span>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+    {% endfor %}
+
+  </div>
+  {% endif %}
+
+  <!-- ── 3. DATA PREVIEW ── -->
+  <div class="card dl-card p-4 mb-4">
+    <h4 class="dl-section-title">
+      &#128269; Data Preview <span class="dl-muted-sm">(first 10 rows)</span>
+    </h4>
+    <div class="table-scroll-wrap">{{ table | safe }}</div>
+  </div>
+
+  <!-- ── 4. STATISTICS ── -->
+  <div class="card dl-card p-4 mb-4">
+    <h4 class="dl-section-title">&#128208; Descriptive Statistics</h4>
+    <div class="table-scroll-wrap">{{ stats | safe }}</div>
+  </div>
+
+  <div class="text-center mt-3">
+    <a href="/" class="btn btn-back-lg">&#8592; Go Back</a>
+  </div>
+
+  <footer class="dl-footer mt-5">
+    DataLens &nbsp;&middot;&nbsp; Powered by Python, Pandas &amp; Matplotlib
+  </footer>
+
+</div>
+</body>
+</html>
