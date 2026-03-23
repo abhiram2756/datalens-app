@@ -3,7 +3,6 @@ import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 import seaborn as sns
 import numpy as np
 import random
@@ -22,8 +21,6 @@ COLOR_POOL = [
     "#FF6B6B","#FF9F43","#FECA57","#48DBFB","#1DD1A1",
     "#54A0FF","#5F27CD","#FF9FF3","#00D2D3","#FF6348",
     "#2ECC71","#3498DB","#9B59B6","#F39C12","#E74C3C",
-    "#1ABC9C","#E67E22","#16A085","#8E44AD","#2980B9",
-    "#F1C40F","#D35400","#27AE60","#C0392B","#7F8C8D",
 ]
 
 def _assign_colors(columns):
@@ -62,14 +59,12 @@ def generate_charts(df):
     _base_style()
 
     numeric_cols = [c for c in df.select_dtypes(include="number").columns]
-
-    # ✅ limit for heavy operations
     limited_cols = numeric_cols[:10]
 
     col_colors = _assign_colors(df.columns)
     chart_groups = []
 
-    # ✅ BOXPLOT (RESTORED)
+    # Boxplot
     if numeric_cols:
         fig, ax = plt.subplots(figsize=(12,6), facecolor=BG_COLOR)
         ax.set_facecolor(CARD_BG)
@@ -91,7 +86,7 @@ def generate_charts(df):
             }]
         })
 
-    # ✅ HEATMAP (RESTORED)
+    # Heatmap
     if len(limited_cols) >= 2:
         fig, ax = plt.subplots(figsize=(8,6), facecolor=BG_COLOR)
         ax.set_facecolor(CARD_BG)
@@ -111,7 +106,7 @@ def generate_charts(df):
             }]
         })
 
-    # ✅ SCATTER (LIMITED)
+    # Scatter
     pairs = list(combinations(limited_cols, 2))[:10]
     scatter_cards = []
     for i,(x,y) in enumerate(pairs):
@@ -147,7 +142,7 @@ def home():
 def upload():
     file = request.files.get('file')
 
-    df = pd.read_csv(file, nrows=2000)  # ✅ optimized
+    df = pd.read_csv(file, nrows=2000)
     df = df.fillna("N/A")
 
     df.to_csv("temp.csv", index=False)
@@ -156,7 +151,13 @@ def upload():
 
     charts, colors = generate_charts(df_num)
 
+    # ✅ RESTORED PART
+    table = df.head(10).to_html(classes="table table-bordered", index=False)
+    stats = df_num.describe().round(2).to_html(classes="table table-bordered")
+
     return render_template('result.html',
+                           table=table,
+                           stats=stats,
                            chart_groups=charts,
                            summary={
                                "rows": df.shape[0],
