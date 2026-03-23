@@ -54,7 +54,7 @@ def _scatter_single(ax, df, x, y, cx, cy):
     ax.set_ylabel(y, color=cy)
     ax.grid(True)
 
-# ===================== STATIC CHARTS =====================
+# ================= STATIC CHARTS =================
 
 def generate_static_charts(df):
     _base_style()
@@ -147,7 +147,7 @@ def generate_static_charts(df):
 
     return chart_groups, colors
 
-# ===================== ROUTES =====================
+# ================= ROUTES =================
 
 @app.route('/')
 def home():
@@ -182,7 +182,21 @@ def upload():
         },
         col_colors=colors)
 
-# ===================== CUSTOM =====================
+# ================= CUSTOM =================
+
+def build_common(df, df_num, colors):
+    return {
+        "table": df.head(10).to_html(classes="table table-bordered", index=False),
+        "stats": df_num.describe().round(2).to_html(classes="table table-bordered"),
+        "summary": {
+            "rows": df.shape[0],
+            "columns": df.shape[1],
+            "column_names": list(df.columns),
+            "numeric_columns": df_num.select_dtypes(include="number").columns.tolist(),
+            "missing_values": df.isnull().sum().to_dict()
+        },
+        "col_colors": colors
+    }
 
 @app.route('/custom_scatter', methods=['POST'])
 def custom_scatter():
@@ -193,7 +207,8 @@ def custom_scatter():
         if not os.path.exists("temp.csv"):
             return "Upload dataset first"
 
-        df = pd.read_csv("temp.csv").replace("N/A", np.nan)
+        df = pd.read_csv("temp.csv")
+        df_num = df.replace("N/A", np.nan)
 
         if x not in df.columns or y not in df.columns:
             return "Invalid columns"
@@ -202,20 +217,23 @@ def custom_scatter():
 
         fig, ax = plt.subplots(figsize=(10,5), facecolor=BG_COLOR)
         ax.set_facecolor(CARD_BG)
+        _scatter_single(ax, df_num, x, y, colors[x], colors[y])
 
-        _scatter_single(ax, df, x, y, colors[x], colors[y])
+        path = "static/custom_scatter.png"
+        _save(fig, path)
 
-        _save(fig, "static/custom_scatter.png")
+        data = build_common(df, df_num, colors)
 
         return render_template('result.html',
             chart_groups=[{
                 "label": "Custom Scatter",
                 "icon": "⚙️",
-                "charts":[{"title": f"{x} × {y}", "path": "static/custom_scatter.png"}]
-            }])
+                "charts":[{"title": f"{x} × {y}", "path": path}]
+            }],
+            **data)
 
     except Exception as e:
-        return str(e)
+        return f"Error: {str(e)}"
 
 @app.route('/custom_hist', methods=['POST'])
 def custom_hist():
@@ -225,12 +243,13 @@ def custom_hist():
         if not os.path.exists("temp.csv"):
             return "Upload dataset first"
 
-        df = pd.read_csv("temp.csv").replace("N/A", np.nan)
+        df = pd.read_csv("temp.csv")
+        df_num = df.replace("N/A", np.nan)
 
         if col not in df.columns:
             return "Invalid column"
 
-        if not pd.api.types.is_numeric_dtype(df[col]):
+        if not pd.api.types.is_numeric_dtype(df_num[col]):
             return "Select numeric column"
 
         colors = _assign_colors(df.columns)
@@ -238,21 +257,25 @@ def custom_hist():
         fig, ax = plt.subplots(figsize=(10,5), facecolor=BG_COLOR)
         ax.set_facecolor(CARD_BG)
 
-        ax.hist(df[col].dropna(), bins=25, color=colors[col])
+        ax.hist(df_num[col].dropna(), bins=25, color=colors[col])
         ax.set_title(f"Distribution – {col}", color=TEXT_COLOR)
         ax.grid(True)
 
-        _save(fig, "static/custom_hist.png")
+        path = "static/custom_hist.png"
+        _save(fig, path)
+
+        data = build_common(df, df_num, colors)
 
         return render_template('result.html',
             chart_groups=[{
                 "label": "Custom Histogram",
                 "icon": "⚙️",
-                "charts":[{"title": col, "path": "static/custom_hist.png"}]
-            }])
+                "charts":[{"title": col, "path": path}]
+            }],
+            **data)
 
     except Exception as e:
-        return str(e)
+        return f"Error: {str(e)}"
 
 if __name__ == '__main__':
     app.run(debug=True)
