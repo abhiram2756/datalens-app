@@ -16,7 +16,6 @@ CARD_BG    = "#141414"
 TEXT_COLOR = "#F0F0F0"
 GRID_COLOR = "#2A2A2A"
 
-# ✅ RESTORED LARGE COLOR POOL (30 colors)
 COLOR_POOL = [
     "#FF6B6B","#FF9F43","#FECA57","#48DBFB","#1DD1A1",
     "#54A0FF","#5F27CD","#FF9FF3","#00D2D3","#FF6348",
@@ -64,7 +63,7 @@ def generate_static_charts(df):
     colors = _assign_colors(df.columns)
     chart_groups = []
 
-    # BOX PLOT (ALL)
+    # BOXPLOT
     fig, ax = plt.subplots(figsize=(14,6), facecolor=BG_COLOR)
     ax.set_facecolor(CARD_BG)
     data = [df[c].dropna() for c in numeric_cols]
@@ -80,7 +79,7 @@ def generate_static_charts(df):
         "charts": [{"title": "Box Plot", "path": path}]
     })
 
-    # HEATMAP WITH VALUES
+    # HEATMAP
     heat_cols = numeric_cols[:10]
     fig, ax = plt.subplots(figsize=(8,6), facecolor=BG_COLOR)
     ax.set_facecolor(CARD_BG)
@@ -117,6 +116,38 @@ def generate_static_charts(df):
             "icon": "📈",
             "scroll": "h",
             "charts": [{"title": "Price over Time", "path": path}]
+        })
+
+    # 🔥 PIE CHART (ONLY NEW ADDITION)
+    cat_cols = df.select_dtypes(include=["object"]).columns
+
+    pie_cards = []
+    for col in list(cat_cols)[:3]:
+        counts = df[col].value_counts().head(6)
+
+        fig, ax = plt.subplots(figsize=(6,6), facecolor=BG_COLOR)
+        ax.set_facecolor(CARD_BG)
+
+        ax.pie(counts,
+               labels=counts.index,
+               autopct="%1.1f%%")
+
+        ax.set_title(f"{col} distribution", color=TEXT_COLOR)
+
+        path = f"static/pie_{col}.png"
+        _save(fig, path)
+
+        pie_cards.append({
+            "title": col,
+            "path": path
+        })
+
+    if pie_cards:
+        chart_groups.append({
+            "label": "Pie Charts",
+            "icon": "🥧",
+            "scroll": "h",
+            "charts": pie_cards
         })
 
     return chart_groups, colors
