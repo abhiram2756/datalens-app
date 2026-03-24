@@ -427,3 +427,115 @@ body.page-result { background: #000; }
   .features    { grid-template-columns: 1fr; }
   .upload-card { padding: 2rem 1.5rem; }
 }
+
+/* ============================================================
+   COLUMN SELECTOR PAGE  (select.html)
+   ============================================================ */
+
+/* Quick action buttons */
+.sel-btn {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--accent-dim);
+  border-radius: 7px;
+  padding: 0.3rem 0.85rem;
+  font-size: 0.78rem;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+.sel-btn:hover {
+  border-color: var(--shine-bright);
+  color: var(--accent);
+}
+
+/* Selected count badge */
+.sel-count {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-family: 'Space Mono', monospace;
+}
+.sel-count span {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Scrollable checkbox list */
+.col-checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 0.4rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--shine) transparent;
+}
+.col-checkbox-list::-webkit-scrollbar       { width: 4px; }
+.col-checkbox-list::-webkit-scrollbar-thumb { background: var(--shine); border-radius: 4px; }
+
+/* Each checkbox row */
+.col-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  user-select: none;
+}
+.col-checkbox-item:hover           { background: var(--surface-2); border-color: var(--border); }
+.col-checkbox-item input           { accent-color: var(--shine-bright); width: 15px; height: 15px; cursor: pointer; flex-shrink: 0; }
+
+/* Type color dots */
+.col-cb-dot      { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot-numeric     { background: #54A0FF; box-shadow: 0 0 5px rgba(84,160,255,0.5); }
+.dot-cat         { background: #FF9F43; box-shadow: 0 0 5px rgba(255,159,67,0.5); }
+.dot-other       { background: #7F8C8D; }
+
+.col-cb-name     { flex: 1; font-size: 0.85rem; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.col-cb-meta     { display: flex; gap: 0.3rem; flex-shrink: 0; flex-wrap: wrap; }
+
+/* Type pills */
+.type-pill       { font-size: 0.62rem; border-radius: 4px; padding: 1px 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.num-pill        { background: rgba(84,160,255,0.15);  color: #54A0FF; }
+.cat-pill        { background: rgba(255,159,67,0.15);  color: #FF9F43; }
+.other-pill      { background: rgba(127,140,141,0.15); color: #7F8C8D; }
+.miss-pill       { font-size: 0.62rem; border-radius: 4px; padding: 1px 6px; background: rgba(255,68,68,0.15); color: #FF4444; font-weight: 600; }
+
+/* Chart guide grid */
+.chart-guide-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.chart-guide-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.7rem 0.85rem;
+}
+.guide-icon  { font-size: 1.4rem; flex-shrink: 0; }
+.guide-title { font-size: 0.83rem; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.guide-sub   { font-size: 0.72rem; color: var(--muted); }
+
+/* ── Chart image centering ── */
+.chart-img-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--bg);
+  padding: 0.5rem;
+  overflow: auto;
+}
+.chart-img-wrap img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
