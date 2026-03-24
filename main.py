@@ -79,7 +79,7 @@ def generate_charts(df):
         "charts": [{"title": "Box Plot", "path": "static/boxplot.png"}]
     })
 
-    # 🔥 HEATMAP (ALL COLUMNS + VALUES)
+    # HEATMAP (ALL COLUMNS)
     if len(numeric_cols) >= 2:
         n = len(numeric_cols)
         size = max(8, n * 0.7)
@@ -87,13 +87,11 @@ def generate_charts(df):
         fig, ax = plt.subplots(figsize=(size, size), facecolor=BG_COLOR)
         ax.set_facecolor(CARD_BG)
 
-        sns.heatmap(
-            df[numeric_cols].corr(),
-            annot=True,
-            fmt=".2f",
-            cmap="Oranges",
-            ax=ax
-        )
+        sns.heatmap(df[numeric_cols].corr(),
+                    annot=True,
+                    fmt=".2f",
+                    cmap="Oranges",
+                    ax=ax)
 
         _save(fig, "static/heatmap.png")
 
@@ -103,43 +101,7 @@ def generate_charts(df):
             "charts": [{"title": "Correlation Heatmap", "path": "static/heatmap.png"}]
         })
 
-    # PIE
-    pie_cards = []
-    for col in list(cat_cols)[:3]:
-        series = df[col]
-
-        if "date" in col.lower():
-            series = pd.to_datetime(series, errors="coerce")
-            series = series.dt.to_period("M").astype(str)
-
-        counts = series.value_counts().head(6)
-
-        fig, ax = plt.subplots(figsize=(6,6), facecolor=BG_COLOR)
-        ax.set_facecolor(CARD_BG)
-
-        wedges, _, _ = ax.pie(counts, autopct="%1.1f%%")
-
-        ax.legend(wedges, counts.index,
-                  title=col,
-                  loc="center left",
-                  bbox_to_anchor=(1, 0, 0.5, 1),
-                  fontsize=8)
-
-        ax.set_title(f"{col} distribution", color=TEXT_COLOR)
-
-        path = f"static/pie_{col}.png"
-        _save(fig, path)
-
-        pie_cards.append({"title": col, "path": path})
-
-    if pie_cards:
-        chart_groups.append({
-            "label": "Pie Charts",
-            "icon": "🥧",
-            "charts": pie_cards
-        })
-
-    # 🔥 TIME SERIES (OLD DESIGN)
+    # TIME SERIES (OLD DESIGN)
     if "date" in df.columns and numeric_cols:
         val = numeric_cols[0]
 
@@ -152,6 +114,8 @@ def generate_charts(df):
 
         ax.plot(df_ts["date"], df_ts[val], color=colors[val])
         ax.set_title(f"Trend Over Time – {val}", color=TEXT_COLOR)
+        ax.set_xlabel("Date", color=TEXT_COLOR)
+        ax.set_ylabel(val, color=colors[val])
         ax.grid(True)
 
         _save(fig, "static/timeseries.png")
@@ -174,42 +138,39 @@ def home():
 def upload():
     file = request.files.get('file')
 
-    df = pd.read_csv(file, nrows=2000)
-    df = df.fillna("N/A")
+    df = pd.read_csv(file, nrows=2000)  # SAFE
+    df_display = df.fillna("N/A")       # ONLY FOR UI
 
     df.to_csv("temp.csv", index=False)
 
-    df_num = df.replace("N/A", np.nan)
-
-    charts, colors = generate_charts(df_num)
-
-    table = df.head(10).to_html(classes="table table-bordered", index=False)
-    stats = df_num.describe().round(2).to_html(classes="table table-bordered")
+    charts, colors = generate_charts(df)
 
     return render_template('result.html',
-        table=table,
-        stats=stats,
+        table=df_display.head(10).to_html(index=False),
+        stats=df.describe().to_html(),
         chart_groups=charts,
         summary={
             "rows": df.shape[0],
             "columns": df.shape[1],
             "column_names": list(df.columns),
-            "numeric_columns": df_num.select_dtypes(include="number").columns.tolist(),
+            "numeric_columns": df.select_dtypes(include="number").columns.tolist(),
             "missing_values": df.isnull().sum().to_dict()
         },
-        col_colors=colors)
+        col_colors=colors
+    )
 
-# ================= CUSTOM (FIXED USING YOUR WORKING VERSION) =================
+# ================= CUSTOM =================
 
-def build_common(df, df_num, colors):
+def build_common(df, colors):
+    df_display = df.fillna("N/A")
     return {
-        "table": df.head(10).to_html(classes="table table-bordered", index=False),
-        "stats": df_num.describe().round(2).to_html(classes="table table-bordered"),
+        "table": df_display.head(10).to_html(index=False),
+        "stats": df.describe().to_html(),
         "summary": {
             "rows": df.shape[0],
             "columns": df.shape[1],
             "column_names": list(df.columns),
-            "numeric_columns": df_num.select_dtypes(include="number").columns.tolist(),
+            "numeric_columns": df.select_dtypes(include="number").columns.tolist(),
             "missing_values": df.isnull().sum().to_dict()
         },
         "col_colors": colors
@@ -217,57 +178,53 @@ def build_common(df, df_num, colors):
 
 @app.route('/custom_scatter', methods=['POST'])
 def custom_scatter():
+    df = pd.read_csv("temp.csv")
+
     x = request.form.get("col_x")
     y = request.form.get("col_y")
-
-    df = pd.read_csv("temp.csv")
-    df_num = df.replace("N/A", np.nan)
 
     colors = _assign_colors(df.columns)
 
     fig, ax = plt.subplots(figsize=(10,5), facecolor=BG_COLOR)
     ax.set_facecolor(CARD_BG)
 
-    _scatter_single(ax, df_num, x, y, colors[x], colors[y])
+    _scatter_single(ax, df, x, y, colors[x], colors[y])
 
     path = "static/custom_scatter.png"
     _save(fig, path)
 
-    data = build_common(df, df_num, colors)
+    data = build_common(df, colors)
 
     return render_template('result.html',
         chart_groups=[{
             "label": "Custom Scatter",
-            "icon": "⚙️",
             "charts":[{"title": f"{x} × {y}", "path": path}]
         }],
         **data)
 
 @app.route('/custom_hist', methods=['POST'])
 def custom_hist():
-    col = request.form.get("col")
-
     df = pd.read_csv("temp.csv")
-    df_num = df.replace("N/A", np.nan)
+
+    col = request.form.get("col")
 
     colors = _assign_colors(df.columns)
 
     fig, ax = plt.subplots(figsize=(10,5), facecolor=BG_COLOR)
     ax.set_facecolor(CARD_BG)
 
-    ax.hist(df_num[col].dropna(), bins=25, color=colors[col])
+    ax.hist(df[col].dropna(), color=colors[col])
     ax.set_title(f"Distribution – {col}", color=TEXT_COLOR)
     ax.grid(True)
 
     path = "static/custom_hist.png"
     _save(fig, path)
 
-    data = build_common(df, df_num, colors)
+    data = build_common(df, colors)
 
     return render_template('result.html',
         chart_groups=[{
             "label": "Custom Histogram",
-            "icon": "⚙️",
             "charts":[{"title": col, "path": path}]
         }],
         **data)
