@@ -11,8 +11,8 @@ import os
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
 
-BG_COLOR   = "#0A0A0A"
-CARD_BG    = "#141414"
+BG_COLOR = "#0A0A0A"
+CARD_BG = "#141414"
 TEXT_COLOR = "#F0F0F0"
 GRID_COLOR = "#2A2A2A"
 
@@ -59,27 +59,25 @@ def _scatter_single(ax, df, x, y, cx, cy):
 def generate_charts(df):
     _base_style()
 
-    numeric_cols = [c for c in df.select_dtypes(include="number").columns
-                    if "id" not in c.lower()]
+    numeric_cols = [c for c in df.select_dtypes(include="number").columns if "id" not in c.lower()]
     cat_cols = df.select_dtypes(include=["object"]).columns
 
     colors = _assign_colors(df.columns)
     chart_groups = []
 
     # BOXPLOT
-    if numeric_cols:
-        fig, ax = plt.subplots(figsize=(14,6), facecolor=BG_COLOR)
-        ax.set_facecolor(CARD_BG)
-        data = [df[c].dropna() for c in numeric_cols]
-        ax.boxplot(data)
-        ax.set_xticklabels(numeric_cols, rotation=40)
-        _save(fig, "static/boxplot.png")
+    fig, ax = plt.subplots(figsize=(14,6), facecolor=BG_COLOR)
+    ax.set_facecolor(CARD_BG)
+    data = [df[c].dropna() for c in numeric_cols]
+    ax.boxplot(data)
+    ax.set_xticklabels(numeric_cols, rotation=40)
+    _save(fig, "static/boxplot.png")
 
-        chart_groups.append({
-            "label": "Box Plot",
-            "icon": "📦",
-            "charts": [{"title": "Box Plot", "path": "static/boxplot.png"}]
-        })
+    chart_groups.append({
+        "label": "Box Plot",
+        "icon": "📦",
+        "charts": [{"title": "Box Plot", "path": "static/boxplot.png"}]
+    })
 
     # 🔥 HEATMAP (ALL COLUMNS + VALUES)
     if len(numeric_cols) >= 2:
@@ -153,11 +151,7 @@ def generate_charts(df):
         ax.set_facecolor(CARD_BG)
 
         ax.plot(df_ts["date"], df_ts[val], color=colors[val])
-
         ax.set_title(f"Trend Over Time – {val}", color=TEXT_COLOR)
-        ax.set_xlabel("Date", color=TEXT_COLOR)
-        ax.set_ylabel(val, color=colors[val])
-
         ax.grid(True)
 
         _save(fig, "static/timeseries.png")
@@ -189,9 +183,12 @@ def upload():
 
     charts, colors = generate_charts(df_num)
 
+    table = df.head(10).to_html(classes="table table-bordered", index=False)
+    stats = df_num.describe().round(2).to_html(classes="table table-bordered")
+
     return render_template('result.html',
-        table=df.head(10).to_html(index=False),
-        stats=df_num.describe().to_html(),
+        table=table,
+        stats=stats,
         chart_groups=charts,
         summary={
             "rows": df.shape[0],
@@ -200,18 +197,31 @@ def upload():
             "numeric_columns": df_num.select_dtypes(include="number").columns.tolist(),
             "missing_values": df.isnull().sum().to_dict()
         },
-        col_colors=colors
-    )
+        col_colors=colors)
 
-# ================= CUSTOM =================
+# ================= CUSTOM (FIXED USING YOUR WORKING VERSION) =================
+
+def build_common(df, df_num, colors):
+    return {
+        "table": df.head(10).to_html(classes="table table-bordered", index=False),
+        "stats": df_num.describe().round(2).to_html(classes="table table-bordered"),
+        "summary": {
+            "rows": df.shape[0],
+            "columns": df.shape[1],
+            "column_names": list(df.columns),
+            "numeric_columns": df_num.select_dtypes(include="number").columns.tolist(),
+            "missing_values": df.isnull().sum().to_dict()
+        },
+        "col_colors": colors
+    }
 
 @app.route('/custom_scatter', methods=['POST'])
 def custom_scatter():
-    df = pd.read_csv("temp.csv")
-    df_num = df.replace("N/A", np.nan)
-
     x = request.form.get("col_x")
     y = request.form.get("col_y")
+
+    df = pd.read_csv("temp.csv")
+    df_num = df.replace("N/A", np.nan)
 
     colors = _assign_colors(df.columns)
 
@@ -223,58 +233,44 @@ def custom_scatter():
     path = "static/custom_scatter.png"
     _save(fig, path)
 
+    data = build_common(df, df_num, colors)
+
     return render_template('result.html',
         chart_groups=[{
-            "label":"Custom Scatter",
-            "charts":[{"title":f"{x} × {y}","path":path}]
+            "label": "Custom Scatter",
+            "icon": "⚙️",
+            "charts":[{"title": f"{x} × {y}", "path": path}]
         }],
-        summary={
-            "rows": df.shape[0],
-            "columns": df.shape[1],
-            "column_names": list(df.columns),
-            "numeric_columns": list(df_num.select_dtypes(include="number").columns),
-            "missing_values": df.isnull().sum().to_dict()
-        },
-        table=df.head(10).to_html(index=False),
-        stats=df_num.describe().to_html(),
-        col_colors=colors
-    )
+        **data)
 
 @app.route('/custom_hist', methods=['POST'])
 def custom_hist():
+    col = request.form.get("col")
+
     df = pd.read_csv("temp.csv")
     df_num = df.replace("N/A", np.nan)
-
-    col = request.form.get("col")
 
     colors = _assign_colors(df.columns)
 
     fig, ax = plt.subplots(figsize=(10,5), facecolor=BG_COLOR)
     ax.set_facecolor(CARD_BG)
 
-    ax.hist(df_num[col].dropna(), color=colors[col])
+    ax.hist(df_num[col].dropna(), bins=25, color=colors[col])
     ax.set_title(f"Distribution – {col}", color=TEXT_COLOR)
     ax.grid(True)
 
     path = "static/custom_hist.png"
     _save(fig, path)
 
+    data = build_common(df, df_num, colors)
+
     return render_template('result.html',
         chart_groups=[{
-            "label":"Custom Histogram",
-            "charts":[{"title":col,"path":path}]
+            "label": "Custom Histogram",
+            "icon": "⚙️",
+            "charts":[{"title": col, "path": path}]
         }],
-        summary={
-            "rows": df.shape[0],
-            "columns": df.shape[1],
-            "column_names": list(df.columns),
-            "numeric_columns": list(df_num.select_dtypes(include="number").columns),
-            "missing_values": df.isnull().sum().to_dict()
-        },
-        table=df.head(10).to_html(index=False),
-        stats=df_num.describe().to_html(),
-        col_colors=colors
-    )
+        **data)
 
 if __name__ == '__main__':
     app.run(debug=True)
