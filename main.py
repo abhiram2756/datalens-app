@@ -1,16 +1,12 @@
-# FINAL VERSION (AUTO SCATTER + HIST REMOVED, EVERYTHING ELSE SAME)
-
 from flask import Flask, render_template, request
 import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 import seaborn as sns
 import numpy as np
 import random
 import os
-from itertools import combinations
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024
@@ -26,7 +22,7 @@ COLOR_POOL = [
     "#2ECC71","#3498DB","#9B59B6","#F39C12","#E74C3C",
     "#1ABC9C","#E67E22","#16A085","#8E44AD","#2980B9",
     "#F1C40F","#D35400","#27AE60","#C0392B","#7F8C8D",
-    "#A29BFE","#FD79A8","#FDCB6E","#6C5CE7","#00CEC9",
+    "#A29BFE","#FD79A8","#FDCB6E","#6C5CE7","#00CEC9"
 ]
 
 def _assign_colors(columns):
@@ -50,24 +46,24 @@ def _save(fig, path):
                 facecolor=fig.get_facecolor())
     plt.close(fig)
 
-def _scatter_single(ax, df, col_x, col_y, color_x, color_y):
-    valid = df[[col_x, col_y]].dropna()
-    ax.scatter(valid[col_x], valid[col_y],
-               alpha=0.65, color=color_x, s=30)
-    ax.set_title(f"{col_x} × {col_y}", color=TEXT_COLOR)
+def _scatter_single(ax, df, x, y, cx, cy):
+    valid = df[[x, y]].dropna()
+    ax.scatter(valid[x], valid[y], alpha=0.65, color=cx, s=30)
+    ax.set_title(f"{x} × {y}", color=TEXT_COLOR)
+    ax.set_xlabel(x, color=cx)
+    ax.set_ylabel(y, color=cy)
     ax.grid(True)
 
-# ================= CHART GENERATION =================
+# ================= CHARTS =================
 
 def generate_charts(df):
     _base_style()
 
     numeric_cols = [c for c in df.select_dtypes(include="number").columns
                     if "id" not in c.lower()]
-
     cat_cols = df.select_dtypes(include=["object"]).columns
 
-    col_colors = _assign_colors(df.columns)
+    colors = _assign_colors(df.columns)
     chart_groups = []
 
     # BOXPLOT
@@ -85,12 +81,24 @@ def generate_charts(df):
             "charts": [{"title": "Box Plot", "path": "static/boxplot.png"}]
         })
 
-    # HEATMAP (LIMITED FOR PERFORMANCE)
+    # 🔥 HEATMAP (ALL COLUMNS SAFE)
     if len(numeric_cols) >= 2:
-        cols = numeric_cols[:10]
-        fig, ax = plt.subplots(figsize=(8,6), facecolor=BG_COLOR)
+        n = len(numeric_cols)
+        size = max(8, n * 0.7)
+
+        fig, ax = plt.subplots(figsize=(size, size), facecolor=BG_COLOR)
         ax.set_facecolor(CARD_BG)
-        sns.heatmap(df[cols].corr(), annot=True, fmt=".2f", cmap="Oranges", ax=ax)
+
+        annot_flag = n <= 15  # prevent clutter
+
+        sns.heatmap(
+            df[numeric_cols].corr(),
+            annot=annot_flag,
+            fmt=".2f",
+            cmap="Oranges",
+            ax=ax
+        )
+
         _save(fig, "static/heatmap.png")
 
         chart_groups.append({
@@ -99,7 +107,7 @@ def generate_charts(df):
             "charts": [{"title": "Correlation Heatmap", "path": "static/heatmap.png"}]
         })
 
-    # PIE (FIXED)
+    # PIE
     pie_cards = []
     for col in list(cat_cols)[:3]:
         series = df[col]
@@ -135,15 +143,23 @@ def generate_charts(df):
             "charts": pie_cards
         })
 
-    # TIME SERIES
+    # 🔥 TIME SERIES (OLD DESIGN RESTORED)
     if "date" in df.columns and numeric_cols:
         val = numeric_cols[0]
+
         df_ts = df.copy()
         df_ts["date"] = pd.to_datetime(df_ts["date"], errors="coerce")
+        df_ts = df_ts.sort_values("date")
 
         fig, ax = plt.subplots(figsize=(12,5), facecolor=BG_COLOR)
         ax.set_facecolor(CARD_BG)
-        ax.plot(df_ts["date"], df_ts[val], color=col_colors[val])
+
+        ax.plot(df_ts["date"], df_ts[val], color=colors[val])
+
+        ax.set_title(f"Trend Over Time – {val}", color=TEXT_COLOR)
+        ax.set_xlabel("Date", color=TEXT_COLOR)
+        ax.set_ylabel(val, color=colors[val])
+
         ax.grid(True)
 
         _save(fig, "static/timeseries.png")
@@ -151,10 +167,10 @@ def generate_charts(df):
         chart_groups.append({
             "label": "Time Series",
             "icon": "📈",
-            "charts": [{"title": "Trend", "path": "static/timeseries.png"}]
+            "charts": [{"title": f"{val} over Time", "path": "static/timeseries.png"}]
         })
 
-    return chart_groups, col_colors
+    return chart_groups, colors
 
 # ================= ROUTES =================
 
@@ -166,7 +182,7 @@ def home():
 def upload():
     file = request.files.get('file')
 
-    df = pd.read_csv(file, nrows=2000)  # FIXED
+    df = pd.read_csv(file, nrows=2000)
     df = df.fillna("N/A")
 
     df.to_csv("temp.csv", index=False)
@@ -203,14 +219,21 @@ def custom_scatter():
 
     fig, ax = plt.subplots(figsize=(10,5), facecolor=BG_COLOR)
     ax.set_facecolor(CARD_BG)
+
     _scatter_single(ax, df_num, x, y, colors[x], colors[y])
 
     path = "static/custom_scatter.png"
     _save(fig, path)
 
     return render_template('result.html',
-        chart_groups=[{"label":"Custom Scatter","charts":[{"title":f"{x} × {y}","path":path}]}],
-        summary={"column_names":list(df.columns),"numeric_columns":list(df_num.select_dtypes(include="number").columns)},
+        chart_groups=[{
+            "label":"Custom Scatter",
+            "charts":[{"title":f"{x} × {y}","path":path}]
+        }],
+        summary={
+            "column_names": list(df.columns),
+            "numeric_columns": list(df_num.select_dtypes(include="number").columns)
+        },
         table=df.head().to_html(),
         stats=df_num.describe().to_html(),
         col_colors=colors
@@ -227,14 +250,23 @@ def custom_hist():
 
     fig, ax = plt.subplots(figsize=(10,5), facecolor=BG_COLOR)
     ax.set_facecolor(CARD_BG)
+
     ax.hist(df_num[col].dropna(), color=colors[col])
+    ax.set_title(f"Distribution – {col}", color=TEXT_COLOR)
+    ax.grid(True)
 
     path = "static/custom_hist.png"
     _save(fig, path)
 
     return render_template('result.html',
-        chart_groups=[{"label":"Custom Histogram","charts":[{"title":col,"path":path}]}],
-        summary={"column_names":list(df.columns),"numeric_columns":list(df_num.select_dtypes(include="number").columns)},
+        chart_groups=[{
+            "label":"Custom Histogram",
+            "charts":[{"title":col,"path":path}]
+        }],
+        summary={
+            "column_names": list(df.columns),
+            "numeric_columns": list(df_num.select_dtypes(include="number").columns)
+        },
         table=df.head().to_html(),
         stats=df_num.describe().to_html(),
         col_colors=colors
