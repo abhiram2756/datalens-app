@@ -81,7 +81,7 @@ def generate_charts(df):
             "charts": [{"title": "Box Plot", "path": "static/boxplot.png"}]
         })
 
-    # 🔥 HEATMAP (ALL COLUMNS SAFE)
+    # 🔥 HEATMAP (ALL COLUMNS + VALUES)
     if len(numeric_cols) >= 2:
         n = len(numeric_cols)
         size = max(8, n * 0.7)
@@ -89,11 +89,9 @@ def generate_charts(df):
         fig, ax = plt.subplots(figsize=(size, size), facecolor=BG_COLOR)
         ax.set_facecolor(CARD_BG)
 
-        annot_flag = n <= 15  # prevent clutter
-
         sns.heatmap(
             df[numeric_cols].corr(),
-            annot=annot_flag,
+            annot=True,
             fmt=".2f",
             cmap="Oranges",
             ax=ax
@@ -143,7 +141,7 @@ def generate_charts(df):
             "charts": pie_cards
         })
 
-    # 🔥 TIME SERIES (OLD DESIGN RESTORED)
+    # 🔥 TIME SERIES (OLD DESIGN)
     if "date" in df.columns and numeric_cols:
         val = numeric_cols[0]
 
@@ -231,10 +229,13 @@ def custom_scatter():
             "charts":[{"title":f"{x} × {y}","path":path}]
         }],
         summary={
+            "rows": df.shape[0],
+            "columns": df.shape[1],
             "column_names": list(df.columns),
-            "numeric_columns": list(df_num.select_dtypes(include="number").columns)
+            "numeric_columns": list(df_num.select_dtypes(include="number").columns),
+            "missing_values": df.isnull().sum().to_dict()
         },
-        table=df.head().to_html(),
+        table=df.head(10).to_html(index=False),
         stats=df_num.describe().to_html(),
         col_colors=colors
     )
@@ -264,10 +265,13 @@ def custom_hist():
             "charts":[{"title":col,"path":path}]
         }],
         summary={
+            "rows": df.shape[0],
+            "columns": df.shape[1],
             "column_names": list(df.columns),
-            "numeric_columns": list(df_num.select_dtypes(include="number").columns)
+            "numeric_columns": list(df_num.select_dtypes(include="number").columns),
+            "missing_values": df.isnull().sum().to_dict()
         },
-        table=df.head().to_html(),
+        table=df.head(10).to_html(index=False),
         stats=df_num.describe().to_html(),
         col_colors=colors
     )
