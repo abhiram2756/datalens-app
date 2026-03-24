@@ -4,7 +4,6 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Analysis Results</title>
-
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"/>
@@ -23,7 +22,6 @@
   <!-- DATASET SUMMARY -->
   <div class="card dl-card p-4 mb-4">
     <h3 class="dl-section-title">📌 Dataset Summary</h3>
-
     <div class="summary-pills mb-3">
       <div class="summary-pill">
         <span class="pill-label">Rows</span>
@@ -44,7 +42,6 @@
         </span>
       </div>
     </div>
-
     <div class="row g-3">
       <div class="col-md-4">
         <div class="dl-sub-card">
@@ -59,7 +56,6 @@
           </ul>
         </div>
       </div>
-
       <div class="col-md-4">
         <div class="dl-sub-card">
           <div class="dl-sub-title">Numeric Columns</div>
@@ -73,7 +69,6 @@
           </ul>
         </div>
       </div>
-
       <div class="col-md-4">
         <div class="dl-sub-card">
           <div class="dl-sub-title">Missing Values</div>
@@ -93,7 +88,6 @@
   <!-- CUSTOM ANALYSIS -->
   <div class="card dl-card p-4 mb-4">
     <h4 class="dl-section-title">⚙️ Custom Analysis</h4>
-
     <!-- SCATTER -->
     <form method="POST" action="/custom_scatter" class="mb-3">
       <div class="row g-2">
@@ -104,7 +98,6 @@
             {% endfor %}
           </select>
         </div>
-
         <div class="col-md-5">
           <select name="col_y" class="form-control">
             {% for col in summary.column_names %}
@@ -112,13 +105,11 @@
             {% endfor %}
           </select>
         </div>
-
         <div class="col-md-2">
           <button class="btn btn-primary w-100">Scatter</button>
         </div>
       </div>
     </form>
-
     <!-- HISTOGRAM -->
     <form method="POST" action="/custom_hist">
       <div class="row g-2">
@@ -129,7 +120,6 @@
             {% endfor %}
           </select>
         </div>
-
         <div class="col-md-2">
           <button class="btn btn-success w-100">Histogram</button>
         </div>
@@ -141,15 +131,15 @@
   {% if chart_groups %}
   <div class="card dl-card p-4 mb-4">
     <h4 class="dl-section-title">📊 Visualizations</h4>
-
     {% for group in chart_groups %}
     <div class="chart-group mb-4">
       <div class="chart-group-label">{{ group.icon }} {{ group.label }}</div>
-
       <div class="chart-2col-grid">
         {% for c in group.charts %}
         <div class="chart-card">
-          <img src="/{{ c.path }}" alt="{{ c.title }}"/>
+          <div class="chart-img-wrap">
+            <img src="/{{ c.path }}" alt="{{ c.title }}"/>
+          </div>
           <div class="chart-title">{{ c.title }}</div>
         </div>
         {% endfor %}
@@ -172,6 +162,5 @@
   </div>
 
 </div>
-
 </body>
 </html>
